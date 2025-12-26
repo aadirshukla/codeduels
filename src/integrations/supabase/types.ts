@@ -14,7 +14,183 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      match_queue: {
+        Row: {
+          elo: number
+          id: string
+          queued_at: string
+          user_id: string
+        }
+        Insert: {
+          elo: number
+          id?: string
+          queued_at?: string
+          user_id: string
+        }
+        Update: {
+          elo?: number
+          id?: string
+          queued_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          player1_id: string
+          player2_id: string
+          problem_slug: string
+          start_time: string | null
+          status: Database["public"]["Enums"]["match_status"]
+          time_limit_seconds: number
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          player1_id: string
+          player2_id: string
+          problem_slug: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["match_status"]
+          time_limit_seconds?: number
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          player1_id?: string
+          player2_id?: string
+          problem_slug?: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["match_status"]
+          time_limit_seconds?: number
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          elo: number
+          id: string
+          losses: number
+          updated_at: string
+          username: string | null
+          wins: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          elo?: number
+          id: string
+          losses?: number
+          updated_at?: string
+          username?: string | null
+          wins?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          elo?: number
+          id?: string
+          losses?: number
+          updated_at?: string
+          username?: string | null
+          wins?: number
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          code: string
+          execution_time_ms: number | null
+          id: string
+          is_final: boolean
+          language: string
+          match_id: string
+          submitted_at: string
+          tests_passed: number
+          tests_total: number
+          user_id: string
+        }
+        Insert: {
+          code: string
+          execution_time_ms?: number | null
+          id?: string
+          is_final?: boolean
+          language?: string
+          match_id: string
+          submitted_at?: string
+          tests_passed?: number
+          tests_total?: number
+          user_id: string
+        }
+        Update: {
+          code?: string
+          execution_time_ms?: number | null
+          id?: string
+          is_final?: boolean
+          language?: string
+          match_id?: string
+          submitted_at?: string
+          tests_passed?: number
+          tests_total?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +199,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      match_status: "waiting" | "in_progress" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +326,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      match_status: ["waiting", "in_progress", "completed", "cancelled"],
+    },
   },
 } as const
