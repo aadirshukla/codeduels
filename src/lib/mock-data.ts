@@ -1,4 +1,5 @@
 import { User, Problem, Match, LeaderboardEntry, Tier } from '@/types';
+import { problemsDatabase } from './problems-data';
 
 export const mockUser: User = {
   id: '1',
@@ -13,135 +14,8 @@ export const mockUser: User = {
   createdAt: new Date('2024-01-15'),
 };
 
-export const mockProblems: Problem[] = [
-  {
-    id: '1',
-    title: 'Two Sum',
-    slug: 'two-sum',
-    difficulty: 'easy',
-    description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
-    examples: [
-      {
-        input: 'nums = [2,7,11,15], target = 9',
-        output: '[0,1]',
-        explanation: 'Because nums[0] + nums[1] == 9, we return [0, 1].',
-      },
-    ],
-    constraints: ['2 <= nums.length <= 10^4', '-10^9 <= nums[i] <= 10^9'],
-    starterCode: {
-      python: 'def twoSum(nums: List[int], target: int) -> List[int]:\n    pass',
-    },
-    testCases: [],
-    tags: ['Array', 'Hash Table'],
-    solveCount: 15420,
-    successRate: 78.5,
-  },
-  {
-    id: '2',
-    title: 'Valid Parentheses',
-    slug: 'valid-parentheses',
-    difficulty: 'easy',
-    description: 'Given a string s containing just the characters \'(\', \')\', \'{\', \'}\', \'[\' and \']\', determine if the input string is valid.',
-    examples: [
-      {
-        input: 's = "()"',
-        output: 'true',
-      },
-    ],
-    constraints: ['1 <= s.length <= 10^4'],
-    starterCode: {
-      python: 'def isValid(s: str) -> bool:\n    pass',
-    },
-    testCases: [],
-    tags: ['String', 'Stack'],
-    solveCount: 12350,
-    successRate: 72.3,
-  },
-  {
-    id: '3',
-    title: 'Merge Intervals',
-    slug: 'merge-intervals',
-    difficulty: 'medium',
-    description: 'Given an array of intervals where intervals[i] = [starti, endi], merge all overlapping intervals.',
-    examples: [
-      {
-        input: 'intervals = [[1,3],[2,6],[8,10],[15,18]]',
-        output: '[[1,6],[8,10],[15,18]]',
-      },
-    ],
-    constraints: ['1 <= intervals.length <= 10^4'],
-    starterCode: {
-      python: 'def merge(intervals: List[List[int]]) -> List[List[int]]:\n    pass',
-    },
-    testCases: [],
-    tags: ['Array', 'Sorting'],
-    solveCount: 8920,
-    successRate: 65.2,
-  },
-  {
-    id: '4',
-    title: 'LRU Cache',
-    slug: 'lru-cache',
-    difficulty: 'medium',
-    description: 'Design a data structure that follows the constraints of a Least Recently Used (LRU) cache.',
-    examples: [
-      {
-        input: '["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"]',
-        output: '[null, null, null, 1, null, -1, null, -1, 3, 4]',
-      },
-    ],
-    constraints: ['1 <= capacity <= 3000'],
-    starterCode: {
-      python: 'class LRUCache:\n    def __init__(self, capacity: int):\n        pass\n\n    def get(self, key: int) -> int:\n        pass\n\n    def put(self, key: int, value: int) -> None:\n        pass',
-    },
-    testCases: [],
-    tags: ['Hash Table', 'Linked List', 'Design'],
-    solveCount: 6540,
-    successRate: 58.7,
-  },
-  {
-    id: '5',
-    title: 'Median of Two Sorted Arrays',
-    slug: 'median-of-two-sorted-arrays',
-    difficulty: 'hard',
-    description: 'Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays.',
-    examples: [
-      {
-        input: 'nums1 = [1,3], nums2 = [2]',
-        output: '2.00000',
-      },
-    ],
-    constraints: ['nums1.length == m', 'nums2.length == n', '0 <= m <= 1000'],
-    starterCode: {
-      python: 'def findMedianSortedArrays(nums1: List[int], nums2: List[int]) -> float:\n    pass',
-    },
-    testCases: [],
-    tags: ['Array', 'Binary Search', 'Divide and Conquer'],
-    solveCount: 3210,
-    successRate: 42.1,
-  },
-  {
-    id: '6',
-    title: 'Regular Expression Matching',
-    slug: 'regular-expression-matching',
-    difficulty: 'hard',
-    description: 'Given an input string s and a pattern p, implement regular expression matching with support for \'.\' and \'*\'.',
-    examples: [
-      {
-        input: 's = "aa", p = "a*"',
-        output: 'true',
-      },
-    ],
-    constraints: ['1 <= s.length <= 20', '1 <= p.length <= 20'],
-    starterCode: {
-      python: 'def isMatch(s: str, p: str) -> bool:\n    pass',
-    },
-    testCases: [],
-    tags: ['String', 'Dynamic Programming', 'Recursion'],
-    solveCount: 2150,
-    successRate: 35.8,
-  },
-];
+// Re-export problems from dedicated file
+export const mockProblems = problemsDatabase;
 
 export const mockLeaderboard: LeaderboardEntry[] = [
   { rank: 1, user: { ...mockUser, id: '10', username: 'algorithm_king', elo: 2847, tier: 'finalboss' as Tier, wins: 312, losses: 45 }, eloChange: 15 },
