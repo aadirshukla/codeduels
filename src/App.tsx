@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Compete from "./pages/Compete";
 import Practice from "./pages/Practice";
+import ProblemDetail from "./pages/ProblemDetail";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/compete" element={<Compete />} />
           <Route path="/practice" element={<Practice />} />
+          <Route path="/practice/:slug" element={<ProblemDetail />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/auth" element={<Auth />} />
