@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TierBadge } from '@/components/common/TierBadge';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMatchmaking } from '@/hooks/useMatchmaking';
+import { getTierFromElo } from '@/lib/utils';
 import { 
   Swords, 
   Users, 
@@ -14,51 +18,40 @@ import {
   Zap,
   Shield
 } from 'lucide-react';
-import { mockUser, mockLeaderboard } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
-
-type QueueStatus = 'idle' | 'searching' | 'found' | 'starting';
 
 export default function Compete() {
-  const [queueStatus, setQueueStatus] = useState<QueueStatus>('idle');
-  const [searchTime, setSearchTime] = useState(0);
-  const [opponent, setOpponent] = useState<typeof mockLeaderboard[0]['user'] | null>(null);
+  const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
+  const {
+    queueStatus,
+    formattedSearchTime,
+    opponent,
+    queueCount,
+    joinQueue,
+    leaveQueue
+  } = useMatchmaking();
 
+  // Redirect to auth if not logged in
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (queueStatus === 'searching') {
-      interval = setInterval(() => {
-        setSearchTime(t => t + 1);
-      }, 1000);
+    if (!authLoading && !user) {
+      navigate('/auth');
     }
-    return () => clearInterval(interval);
-  }, [queueStatus]);
+  }, [user, authLoading, navigate]);
 
-  useEffect(() => {
-    if (queueStatus === 'searching' && searchTime >= 5) {
-      // Simulate finding an opponent
-      setOpponent(mockLeaderboard[5].user);
-      setQueueStatus('found');
-      setTimeout(() => setQueueStatus('starting'), 3000);
-    }
-  }, [searchTime, queueStatus]);
+  if (authLoading || !profile) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleQueue = () => {
-    setQueueStatus('searching');
-    setSearchTime(0);
-  };
-
-  const handleCancel = () => {
-    setQueueStatus('idle');
-    setSearchTime(0);
-    setOpponent(null);
-  };
+  const userTier = getTierFromElo(profile.elo);
 
   return (
     <Layout>
@@ -85,11 +78,11 @@ export default function Compete() {
                     {/* Your Profile */}
                     <div className="text-center">
                       <div className="h-20 w-20 mx-auto rounded-full bg-secondary flex items-center justify-center text-2xl font-bold mb-3">
-                        {mockUser.username[0].toUpperCase()}
+                        {(profile.username?.[0] || 'U').toUpperCase()}
                       </div>
-                      <p className="font-semibold">{mockUser.username}</p>
-                      <TierBadge tier={mockUser.tier} size="sm" />
-                      <p className="text-sm text-muted-foreground mt-1 font-mono">{mockUser.elo} ELO</p>
+                      <p className="font-semibold">{profile.username || 'You'}</p>
+                      <TierBadge tier={userTier} size="sm" />
+                      <p className="text-sm text-muted-foreground mt-1 font-mono">{profile.elo} ELO</p>
                     </div>
 
                     <div className="flex flex-col items-center gap-2">
@@ -107,7 +100,7 @@ export default function Compete() {
                     </div>
                   </div>
 
-                  <Button variant="hero" size="xl" onClick={handleQueue}>
+                  <Button variant="hero" size="xl" onClick={joinQueue}>
                     <Swords className="h-5 w-5" />
                     Enter Queue
                   </Button>
@@ -126,11 +119,11 @@ export default function Compete() {
                     </div>
                   </div>
                   <h3 className="text-xl font-semibold mb-2">Searching for opponent...</h3>
-                  <p className="text-3xl font-mono font-bold text-primary mb-2">{formatTime(searchTime)}</p>
+                  <p className="text-3xl font-mono font-bold text-primary mb-2">{formattedSearchTime}</p>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Finding a player around {mockUser.elo} ±150 ELO
+                    Finding a player around {profile.elo} ±150 ELO
                   </p>
-                  <Button variant="outline" onClick={handleCancel}>
+                  <Button variant="outline" onClick={leaveQueue}>
                     <X className="h-4 w-4" />
                     Cancel Queue
                   </Button>
@@ -143,11 +136,11 @@ export default function Compete() {
                     {/* Your Profile */}
                     <div className="text-center animate-slide-in-right" style={{ animationDelay: '0s' }}>
                       <div className="h-20 w-20 mx-auto rounded-full bg-secondary flex items-center justify-center text-2xl font-bold mb-3 ring-4 ring-success/50">
-                        {mockUser.username[0].toUpperCase()}
+                        {(profile.username?.[0] || 'U').toUpperCase()}
                       </div>
-                      <p className="font-semibold">{mockUser.username}</p>
-                      <TierBadge tier={mockUser.tier} size="sm" />
-                      <p className="text-sm text-muted-foreground mt-1 font-mono">{mockUser.elo}</p>
+                      <p className="font-semibold">{profile.username || 'You'}</p>
+                      <TierBadge tier={userTier} size="sm" />
+                      <p className="text-sm text-muted-foreground mt-1 font-mono">{profile.elo}</p>
                     </div>
 
                     <div className="flex flex-col items-center gap-2">
@@ -158,10 +151,10 @@ export default function Compete() {
                     {/* Opponent */}
                     <div className="text-center animate-slide-in-right" style={{ animationDelay: '0.2s' }}>
                       <div className="h-20 w-20 mx-auto rounded-full bg-secondary flex items-center justify-center text-2xl font-bold mb-3 ring-4 ring-destructive/50">
-                        {opponent.username[0].toUpperCase()}
+                        {(opponent.username?.[0] || 'O').toUpperCase()}
                       </div>
-                      <p className="font-semibold">{opponent.username}</p>
-                      <TierBadge tier={opponent.tier} size="sm" />
+                      <p className="font-semibold">{opponent.username || 'Opponent'}</p>
+                      <TierBadge tier={getTierFromElo(opponent.elo)} size="sm" />
                       <p className="text-sm text-muted-foreground mt-1 font-mono">{opponent.elo}</p>
                     </div>
                   </div>
@@ -187,8 +180,8 @@ export default function Compete() {
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">1,247</p>
-                  <p className="text-sm text-muted-foreground">Players Online</p>
+                  <p className="text-2xl font-bold">{queueCount}</p>
+                  <p className="text-sm text-muted-foreground">In Queue</p>
                 </div>
               </div>
             </Card>
@@ -206,11 +199,11 @@ export default function Compete() {
             <Card variant="glass" className="p-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Swords className="h-5 w-5" />
+                  <Trophy className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">342</p>
-                  <p className="text-sm text-muted-foreground">Active Matches</p>
+                  <p className="text-2xl font-bold">{profile.wins}</p>
+                  <p className="text-sm text-muted-foreground">Your Wins</p>
                 </div>
               </div>
             </Card>
