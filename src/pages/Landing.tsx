@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Play
 } from 'lucide-react';
+import { usePlatformStats } from '@/hooks/usePlatformStats';
+import { problemsDatabase } from '@/lib/problems-data';
 
 const features = [
   {
@@ -49,14 +51,23 @@ const features = [
   },
 ];
 
-const stats = [
-  { value: '10K+', label: 'Active Coders' },
-  { value: '500+', label: 'Problems' },
-  { value: '1M+', label: 'Matches Played' },
-  { value: '99.9%', label: 'Uptime' },
-];
-
 export default function Landing() {
+  const { stats, loading } = usePlatformStats();
+
+  // Format numbers for display
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M+`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K+`;
+    return num.toString();
+  };
+
+  const dynamicStats = [
+    { value: loading ? '...' : formatNumber(stats.totalPlayers), label: 'Active Coders' },
+    { value: problemsDatabase.length.toString(), label: 'Problems' },
+    { value: loading ? '...' : formatNumber(stats.totalMatches), label: 'Matches Played' },
+    { value: '99.9%', label: 'Uptime' },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -124,7 +135,7 @@ export default function Landing() {
 
           {/* Stats */}
           <div className="mt-24 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            {stats.map((stat) => (
+            {dynamicStats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-3xl md:text-4xl font-bold gradient-text">{stat.value}</p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
@@ -205,7 +216,7 @@ export default function Landing() {
                 Ready to Prove Yourself?
               </h2>
               <p className="text-muted-foreground max-w-xl mx-auto mb-8">
-                Join thousands of developers sharpening their skills through competitive coding. 
+                Join {stats.totalPlayers > 0 ? stats.totalPlayers.toLocaleString() : 'other'} developers sharpening their skills through competitive coding. 
                 Your next interview success starts here.
               </p>
               <Link to="/auth?mode=signup">

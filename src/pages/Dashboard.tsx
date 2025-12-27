@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,34 @@ import {
   Code2,
   Calendar
 } from 'lucide-react';
-import { mockUser, mockRecentMatches, mockProblems } from '@/lib/mock-data';
-import { TIER_THRESHOLDS, TIER_NAMES } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserStats } from '@/hooks/useUserStats';
+import { TIER_THRESHOLDS } from '@/types';
+import { problemsDatabase } from '@/lib/problems-data';
 
 export default function Dashboard() {
-  const eloProgress = ((mockUser.elo - TIER_THRESHOLDS[mockUser.tier].min) / 
-    (TIER_THRESHOLDS[mockUser.tier].max - TIER_THRESHOLDS[mockUser.tier].min)) * 100;
-  
-  const winRate = Math.round((mockUser.wins / (mockUser.wins + mockUser.losses)) * 100);
+  const { user, loading: authLoading } = useAuth();
+  const { stats, recentMatches, loading } = useUserStats();
+
+  // Redirect to auth if not logged in
+  if (!authLoading && !user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (authLoading || loading || !stats) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
+          <div className="h-8 w-8 border-2 border-primary border-r-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  const eloProgress = ((stats.elo - TIER_THRESHOLDS[stats.tier].min) / 
+    (TIER_THRESHOLDS[stats.tier].max - TIER_THRESHOLDS[stats.tier].min)) * 100;
+
+  const totalMatches = stats.wins + stats.losses;
 
   return (
     <Layout>
@@ -34,7 +54,7 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-1">
-              Welcome back, <span className="gradient-text">{mockUser.username}</span>
+              Welcome back, <span className="gradient-text">{stats.username}</span>
             </h1>
             <p className="text-muted-foreground">
               Ready to compete? Your next victory awaits.
@@ -62,16 +82,16 @@ export default function Dashboard() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
                 <Trophy className="h-6 w-6 text-primary" />
-                <span className="text-3xl font-bold font-mono">{mockUser.elo}</span>
-                <TierBadge tier={mockUser.tier} size="lg" />
+                <span className="text-3xl font-bold font-mono">{stats.elo}</span>
+                <TierBadge tier={stats.tier} size="lg" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Progress to next tier</span>
                   <span className="font-medium">
-                    {TIER_THRESHOLDS[mockUser.tier].max === Infinity 
+                    {TIER_THRESHOLDS[stats.tier].max === Infinity 
                       ? 'Max Tier' 
-                      : `${TIER_THRESHOLDS[mockUser.tier].max - mockUser.elo} ELO to go`}
+                      : `${TIER_THRESHOLDS[stats.tier].max - stats.elo} ELO to go`}
                   </span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -84,15 +104,15 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-6 pt-4 md:pt-0 md:pl-6 border-t md:border-t-0 md:border-l border-border">
               <div className="text-center">
-                <p className="text-2xl font-bold text-success">{mockUser.wins}</p>
+                <p className="text-2xl font-bold text-success">{stats.wins}</p>
                 <p className="text-xs text-muted-foreground">Wins</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-destructive">{mockUser.losses}</p>
+                <p className="text-2xl font-bold text-destructive">{stats.losses}</p>
                 <p className="text-xs text-muted-foreground">Losses</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold">{winRate}%</p>
+                <p className="text-2xl font-bold">{stats.winRate}%</p>
                 <p className="text-xs text-muted-foreground">Win Rate</p>
               </div>
             </div>
@@ -102,30 +122,28 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
-            title="Current Streak"
-            value={mockUser.streak}
-            subtitle="consecutive wins"
-            icon={Flame}
-            trend={{ value: 20, isPositive: true }}
+            title="Total Matches"
+            value={totalMatches}
+            subtitle="matches played"
+            icon={Swords}
           />
           <StatCard
-            title="Problems Solved"
-            value={mockUser.problemsSolved}
-            subtitle="lifetime total"
-            icon={Target}
+            title="Victories"
+            value={stats.wins}
+            subtitle="total wins"
+            icon={Trophy}
           />
           <StatCard
-            title="Avg. Solve Time"
-            value="12:34"
-            subtitle="minutes per problem"
-            icon={Clock}
-          />
-          <StatCard
-            title="Weekly Rank"
-            value="#127"
-            subtitle="of 10,423 players"
+            title="Current ELO"
+            value={stats.elo}
+            subtitle={stats.tier}
             icon={TrendingUp}
-            trend={{ value: 15, isPositive: true }}
+          />
+          <StatCard
+            title="Win Rate"
+            value={`${stats.winRate}%`}
+            subtitle="overall performance"
+            icon={Target}
           />
         </div>
 
@@ -146,37 +164,32 @@ export default function Dashboard() {
               </Link>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockRecentMatches.map((match) => {
-                const isWinner = match.winner?.id === mockUser.id;
-                const opponent = match.player1.id === mockUser.id ? match.player2 : match.player1;
-                
-                return (
+              {recentMatches.length > 0 ? (
+                recentMatches.map((match) => (
                   <div 
                     key={match.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
                   >
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                      isWinner ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                      match.isWinner ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
                     }`}>
-                      {isWinner ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                      {match.isWinner ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">vs {opponent.username}</p>
-                      <p className="text-sm text-muted-foreground truncate">{match.problem.title}</p>
+                      <p className="font-medium truncate">vs {match.opponent.username}</p>
+                      <p className="text-sm text-muted-foreground truncate">{match.problem_slug}</p>
                     </div>
                     <div className="text-right">
-                      <p className={`font-mono font-semibold ${isWinner ? 'text-success' : 'text-destructive'}`}>
-                        {isWinner ? '+18' : '-12'}
+                      <p className={`font-mono font-semibold ${match.isWinner ? 'text-success' : 'text-destructive'}`}>
+                        {match.isWinner ? '+ELO' : '-ELO'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(match.endedAt!).toLocaleDateString()}
+                        {new Date(match.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                );
-              })}
-              
-              {mockRecentMatches.length === 0 && (
+                ))
+              ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Swords className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>No matches yet. Start competing!</p>
@@ -200,7 +213,7 @@ export default function Dashboard() {
               </Link>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockProblems.slice(0, 4).map((problem) => (
+              {problemsDatabase.slice(0, 4).map((problem) => (
                 <Link
                   key={problem.id}
                   to={`/practice/${problem.slug}`}
@@ -227,43 +240,25 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Activity Calendar Placeholder */}
+        {/* Member Since */}
         <Card variant="glass" className="mt-6">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              Activity This Month
+              Your Journey
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: 35 }).map((_, i) => {
-                const intensity = Math.random();
-                return (
-                  <div
-                    key={i}
-                    className={`h-8 rounded-sm ${
-                      intensity > 0.7 
-                        ? 'bg-primary' 
-                        : intensity > 0.4 
-                        ? 'bg-primary/50' 
-                        : intensity > 0.2 
-                        ? 'bg-primary/20' 
-                        : 'bg-secondary'
-                    }`}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-3 text-xs text-muted-foreground">
-              <span>Less</span>
-              <div className="flex gap-1">
-                <div className="h-3 w-3 rounded-sm bg-secondary" />
-                <div className="h-3 w-3 rounded-sm bg-primary/20" />
-                <div className="h-3 w-3 rounded-sm bg-primary/50" />
-                <div className="h-3 w-3 rounded-sm bg-primary" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Clock className="h-6 w-6" />
               </div>
-              <span>More</span>
+              <div>
+                <p className="text-lg font-semibold">Member since {stats.createdAt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                <p className="text-sm text-muted-foreground">
+                  {totalMatches} matches played • {stats.wins} victories
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
