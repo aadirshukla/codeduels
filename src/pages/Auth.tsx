@@ -22,6 +22,7 @@ export default function Auth() {
   const { toast } = useToast();
   const { signIn, signUp, user, loading: authLoading } = useAuth();
   
+  // Default to signin - most returning users want to log in, not create a new account
   const [mode, setMode] = useState<'signin' | 'signup'>(
     searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
   );
@@ -66,11 +67,23 @@ export default function Auth() {
         const { error } = await signUp(formData.email, formData.password, formData.username);
         
         if (error) {
-          toast({
-            title: 'Sign up failed',
-            description: error.message,
-            variant: 'destructive'
-          });
+          // Handle user already exists error with helpful message
+          if (error.message.toLowerCase().includes('already registered') || 
+              error.message.toLowerCase().includes('already exists')) {
+            toast({
+              title: 'Account already exists',
+              description: 'An account with this email already exists. Please sign in instead.',
+              variant: 'destructive'
+            });
+            // Switch to sign-in mode to help the user
+            setMode('signin');
+          } else {
+            toast({
+              title: 'Sign up failed',
+              description: error.message,
+              variant: 'destructive'
+            });
+          }
         } else {
           toast({
             title: 'Account created!',
