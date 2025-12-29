@@ -196,7 +196,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cancel_match: { Args: { p_match_id: string }; Returns: undefined }
+      finalize_match: {
+        Args: { p_match_id: string; p_winner_id: string }
+        Returns: undefined
+      }
+      start_match: { Args: { match_id: string }; Returns: undefined }
     }
     Enums: {
       match_status: "waiting" | "in_progress" | "completed" | "cancelled"
