@@ -47,19 +47,54 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { userId, elo } = await req.json();
-    
-    // Validate inputs
-    if (!userId || typeof elo !== 'number') {
+    // Get authenticated user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Invalid request parameters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Unauthorized - Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Create client with user's auth token to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      console.log('Authentication failed');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = user.id;
+
+    // Create service client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get user's ELO from their profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('elo')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.log('Failed to fetch user profile');
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch user profile' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const elo = profile?.elo || 1000;
     
     // Log without exposing user IDs
     console.log(`Matchmaking request: ELO ${elo}`);
