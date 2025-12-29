@@ -48,23 +48,84 @@ export default function Auth() {
     }));
   };
 
+  // Username validation (client-side for immediate feedback)
+  const validateUsername = (username: string): string | null => {
+    const trimmed = username.trim();
+    
+    // Check for email pattern
+    if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(trimmed)) {
+      return 'Email addresses cannot be used as usernames';
+    }
+    
+    // Check length
+    if (trimmed.length < 3 || trimmed.length > 30) {
+      return 'Username must be between 3 and 30 characters';
+    }
+    
+    // Check valid characters
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      return 'Username can only contain letters, numbers, underscore, and hyphen';
+    }
+    
+    return null;
+  };
+
+  // Password validation with strong requirements
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 12) {
+      return 'Password must be at least 12 characters';
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      return 'Password must include at least one lowercase letter';
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must include at least one uppercase letter';
+    }
+    
+    if (!/\d/.test(password)) {
+      return 'Password must include at least one number';
+    }
+    
+    if (!/[@$!%*?&]/.test(password)) {
+      return 'Password must include at least one special character (@$!%*?&)';
+    }
+    
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (mode === 'signup') {
-        if (formData.password.length < 6) {
+        // Validate username
+        const usernameError = validateUsername(formData.username);
+        if (usernameError) {
           toast({
-            title: 'Password too short',
-            description: 'Password must be at least 6 characters.',
+            title: 'Invalid username',
+            description: usernameError,
             variant: 'destructive'
           });
           setLoading(false);
           return;
         }
 
-        const { error } = await signUp(formData.email, formData.password, formData.username);
+        // Validate password with strong requirements
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) {
+          toast({
+            title: 'Weak password',
+            description: passwordError,
+            variant: 'destructive'
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await signUp(formData.email, formData.password, formData.username.trim());
         
         if (error) {
           // Handle user already exists error with helpful message
