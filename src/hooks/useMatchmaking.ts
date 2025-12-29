@@ -188,10 +188,10 @@ export function useMatchmaking() {
       return;
     }
 
-    // Call matchmaking edge function
+    // Call matchmaking edge function - userId/elo now extracted from JWT on server
     try {
       const { data, error } = await supabase.functions.invoke('matchmaking', {
-        body: { userId: user.id, elo: profile.elo }
+        body: {}
       });
 
       // Log status without sensitive details
