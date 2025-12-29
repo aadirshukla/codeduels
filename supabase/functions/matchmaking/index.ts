@@ -1,9 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://przpywazavdzmrcdxlqr.lovableproject.com',
+  'https://lovable.dev',
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+// Helper to get CORS headers based on origin
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) 
+    ? origin 
+    : ALLOWED_ORIGINS[0];
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
 };
 
 // Problems pool for random selection
@@ -21,6 +37,9 @@ const PROBLEM_POOL = [
 ];
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,7 +52,17 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { userId, elo } = await req.json();
-    console.log(`Matchmaking request from user ${userId} with ELO ${elo}`);
+    
+    // Validate inputs
+    if (!userId || typeof elo !== 'number') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Log without exposing user IDs
+    console.log(`Matchmaking request: ELO ${elo}`);
 
     // Get all users in queue (excluding current user)
     const { data: queueEntries, error: queueError } = await supabase
@@ -43,11 +72,11 @@ serve(async (req) => {
       .order('queued_at', { ascending: true });
 
     if (queueError) {
-      console.error('Error fetching queue:', queueError);
+      console.error('Error fetching queue');
       throw queueError;
     }
 
-    console.log(`Found ${queueEntries?.length || 0} other users in queue`);
+    console.log(`Queue size: ${queueEntries?.length || 0}`);
 
     if (!queueEntries || queueEntries.length === 0) {
       // No opponents available, user stays in queue
@@ -89,7 +118,8 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found match: ${userId} vs ${bestMatch.user_id} (ELO diff: ${smallestDiff})`);
+    // Log without exposing user IDs
+    console.log(`Match found with ELO diff: ${smallestDiff}`);
 
     // Select random problem
     const problemSlug = PROBLEM_POOL[Math.floor(Math.random() * PROBLEM_POOL.length)];
@@ -111,11 +141,11 @@ serve(async (req) => {
       .single();
 
     if (matchError) {
-      console.error('Error creating match:', matchError);
+      console.error('Error creating match');
       throw matchError;
     }
 
-    console.log(`Match created: ${match.id}`);
+    console.log('Match created successfully');
 
     // Remove both players from queue
     await supabase
@@ -137,7 +167,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Matchmaking error:', error);
+    console.error('Matchmaking error occurred');
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

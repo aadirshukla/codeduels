@@ -61,7 +61,8 @@ export function useMatchmaking() {
           filter: `player1_id=eq.${user.id}`
         },
         async (payload) => {
-          console.log('Match found (player1):', payload);
+          // Match found - redacted logging
+          console.log('Match found for current user');
           await handleMatchFound(payload.new as MatchData, 'player2_id');
         }
       )
@@ -74,7 +75,8 @@ export function useMatchmaking() {
           filter: `player2_id=eq.${user.id}`
         },
         async (payload) => {
-          console.log('Match found (player2):', payload);
+          // Match found - redacted logging
+          console.log('Match found for current user');
           await handleMatchFound(payload.new as MatchData, 'player1_id');
         }
       )
@@ -192,9 +194,14 @@ export function useMatchmaking() {
         body: { userId: user.id, elo: profile.elo }
       });
 
-      console.log('Matchmaking response:', data, error);
+      // Log status without sensitive details
+      if (error) {
+        console.error('Matchmaking failed');
+      } else if (data?.status) {
+        console.log('Matchmaking status:', data.status);
+      }
     } catch (err) {
-      console.error('Matchmaking error:', err);
+      console.error('Matchmaking request failed');
     }
   }, [user, profile, toast]);
 
