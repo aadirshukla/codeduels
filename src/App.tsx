@@ -12,6 +12,7 @@ import ProblemDetail from "./pages/ProblemDetail";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import Match from "./pages/Match";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/compete" element={<Compete />} />
             <Route path="/practice" element={<Practice />} />
             <Route path="/practice/:slug" element={<ProblemDetail />} />
+            <Route path="/match/:matchId" element={<Match />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/auth" element={<Auth />} />

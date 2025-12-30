@@ -47,6 +47,8 @@ export type Database = {
         Row: {
           created_at: string
           end_time: string | null
+          first_correct_submission_at: string | null
+          grace_timer_ends_at: string | null
           id: string
           player1_id: string
           player2_id: string
@@ -59,6 +61,8 @@ export type Database = {
         Insert: {
           created_at?: string
           end_time?: string | null
+          first_correct_submission_at?: string | null
+          grace_timer_ends_at?: string | null
           id?: string
           player1_id: string
           player2_id: string
@@ -71,6 +75,8 @@ export type Database = {
         Update: {
           created_at?: string
           end_time?: string | null
+          first_correct_submission_at?: string | null
+          grace_timer_ends_at?: string | null
           id?: string
           player1_id?: string
           player2_id?: string
@@ -140,11 +146,13 @@ export type Database = {
       submissions: {
         Row: {
           code: string
+          code_length: number | null
           execution_time_ms: number | null
           id: string
           is_final: boolean
           language: string
           match_id: string
+          score: number | null
           submitted_at: string
           tests_passed: number
           tests_total: number
@@ -152,11 +160,13 @@ export type Database = {
         }
         Insert: {
           code: string
+          code_length?: number | null
           execution_time_ms?: number | null
           id?: string
           is_final?: boolean
           language?: string
           match_id: string
+          score?: number | null
           submitted_at?: string
           tests_passed?: number
           tests_total?: number
@@ -164,11 +174,13 @@ export type Database = {
         }
         Update: {
           code?: string
+          code_length?: number | null
           execution_time_ms?: number | null
           id?: string
           is_final?: boolean
           language?: string
           match_id?: string
+          score?: number | null
           submitted_at?: string
           tests_passed?: number
           tests_total?: number
