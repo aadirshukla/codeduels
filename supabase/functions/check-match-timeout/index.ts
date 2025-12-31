@@ -21,6 +21,29 @@ const getCorsHeaders = (origin: string | null) => {
   };
 };
 
+// Simple in-memory rate limiting (per-worker, resets on cold start)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_REQUESTS_PER_MINUTE = 10;
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const key = `timeout:${userId}`;
+  const record = rateLimitMap.get(key);
+  
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (record.count >= RATE_LIMIT_REQUESTS_PER_MINUTE) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
 serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -55,11 +78,20 @@ serve(async (req) => {
       );
     }
 
+    // Check rate limit
+    if (!checkRateLimit(user.id)) {
+      console.warn(`Rate limit exceeded for timeout check: ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please wait before trying again.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { matchId } = await req.json();
     
-    if (!matchId) {
+    if (!matchId || typeof matchId !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Missing matchId' }),
+        JSON.stringify({ error: 'Invalid or missing matchId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -246,7 +278,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Check timeout error:', errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred checking match status' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
