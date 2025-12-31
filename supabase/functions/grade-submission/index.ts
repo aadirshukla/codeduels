@@ -21,6 +21,33 @@ const getCorsHeaders = (origin: string | null) => {
   };
 };
 
+// Input validation constants
+const MAX_CODE_LENGTH = 50000; // 50KB max code size
+const ALLOWED_LANGUAGES = ['python', 'javascript', 'typescript', 'java', 'cpp', 'c'];
+
+// Simple in-memory rate limiting (per-worker, resets on cold start)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_SUBMISSIONS_PER_MINUTE = 30;
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const key = `submission:${userId}`;
+  const record = rateLimitMap.get(key);
+  
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (record.count >= RATE_LIMIT_SUBMISSIONS_PER_MINUTE) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
 // Problem test cases - in production this would be from a database
 const PROBLEM_TEST_CASES: Record<string, { input: string; expected: string; isHidden: boolean }[]> = {
   'two-sum': [
@@ -117,16 +144,46 @@ serve(async (req) => {
       );
     }
 
-    const { matchId, code, isFinal } = await req.json();
-    
-    if (!matchId || !code) {
+    // Check rate limit
+    if (!checkRateLimit(user.id)) {
+      console.warn(`Rate limit exceeded for user: ${user.id}`);
       return new Response(
-        JSON.stringify({ error: 'Missing matchId or code' }),
+        JSON.stringify({ error: 'Too many submissions. Please wait before trying again.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { matchId, code, language, isFinal } = await req.json();
+    
+    // Input validation
+    if (!matchId || typeof matchId !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or missing matchId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Grading submission for match: ${matchId}, isFinal: ${isFinal}`);
+    if (!code || typeof code !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or missing code' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate code length
+    if (code.length > MAX_CODE_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Code exceeds maximum length of ${MAX_CODE_LENGTH} characters` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate language if provided
+    const submissionLanguage = language && typeof language === 'string' && ALLOWED_LANGUAGES.includes(language.toLowerCase()) 
+      ? language.toLowerCase() 
+      : 'python';
+
+    console.log(`Grading submission for match: ${matchId}, isFinal: ${isFinal}, language: ${submissionLanguage}`);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -190,7 +247,7 @@ serve(async (req) => {
         match_id: matchId,
         user_id: user.id,
         code: code,
-        language: 'python',
+        language: submissionLanguage,
         tests_passed: passedTests,
         tests_total: totalTests,
         is_final: isFinal || allPassed,
@@ -284,20 +341,21 @@ serve(async (req) => {
         })
         .eq('id', matchId);
 
-      // Update ELO ratings
+      // Use finalize_match RPC to handle ELO and stats updates atomically
+      // Note: finalize_match requires auth context, so we update stats directly here
       if (winnerId) {
         const loserId = winnerId === match.player1_id ? match.player2_id : match.player1_id;
         
-        // Simple ELO calculation
+        // Get profiles for ELO calculation
         const { data: winnerProfile } = await supabase
           .from('profiles')
-          .select('elo')
+          .select('elo, wins')
           .eq('id', winnerId)
           .single();
         
         const { data: loserProfile } = await supabase
           .from('profiles')
-          .select('elo')
+          .select('elo, losses')
           .eq('id', loserId)
           .single();
 
@@ -309,11 +367,19 @@ serve(async (req) => {
           const winnerNewElo = Math.round(winnerProfile.elo + K * (1 - expectedWinner));
           const loserNewElo = Math.round(loserProfile.elo + K * (0 - expectedLoser));
 
-          await supabase.from('profiles').update({ elo: winnerNewElo, wins: winnerProfile.elo + 1 }).eq('id', winnerId);
-          await supabase.from('profiles').update({ elo: loserNewElo }).eq('id', loserId);
+          // Update winner's ELO and wins (FIXED: was using winnerProfile.elo instead of winnerProfile.wins)
+          await supabase
+            .from('profiles')
+            .update({ elo: winnerNewElo, wins: winnerProfile.wins + 1 })
+            .eq('id', winnerId);
           
-          // Also update wins/losses
-          await supabase.rpc('finalize_match', { p_match_id: matchId, p_winner_id: winnerId });
+          // Update loser's ELO and losses
+          await supabase
+            .from('profiles')
+            .update({ elo: loserNewElo, losses: loserProfile.losses + 1 })
+            .eq('id', loserId);
+          
+          console.log(`ELO updated - Winner: ${winnerNewElo}, Loser: ${loserNewElo}`);
         }
       }
     }
@@ -339,7 +405,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Grade submission error:', errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred processing your submission' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
